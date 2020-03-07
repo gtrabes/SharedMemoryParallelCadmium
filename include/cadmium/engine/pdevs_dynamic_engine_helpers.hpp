@@ -105,7 +105,15 @@ namespace cadmium {
             template<typename TIME>
             void collect_outputs_in_subcoordinators(TIME t, subcoordinators_type<TIME>& subcoordinators) {
                 auto collect_output = [&t](auto & c)->void { c->collect_outputs(t); };
-                std::for_each(subcoordinators.begin(), subcoordinators.end(), collect_output);
+
+                //parallel section with OpenMP
+				#pragma omp parallel for
+
+                for (it = subcooordinators.begin(); it < subcorrdinators.end(); it++) {
+                	it.collect_outputs(t);
+                }
+//                	std::for_each(subcoordinators.begin(), subcoordinators.end(), collect_output);
+
             }
 
             template<typename TIME, typename LOGGER>
