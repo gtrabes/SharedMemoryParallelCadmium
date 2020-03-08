@@ -41,21 +41,12 @@ namespace cadmium {
          * and waits por all tasks to finish until it returns
          */
         template<typename ITERATOR, typename FUNC>
-        void concurrent_for_each(boost::basic_thread_pool& threadpool, ITERATOR first, ITERATOR last, FUNC& f) {
-          std::vector<std::future<void> > task_statuses;
+        void concurrent_for_each(ITERATOR first, ITERATOR last, FUNC& f) {
 
-          for (ITERATOR it = first; it != last; it++) {
-              std::packaged_task<void()> task(std::bind<void>(f, *it));
-              task_statuses.push_back(task.get_future());
-
-              threadpool.submit(std::move(task));
+        for (ITERATOR it = first; it != last; it++) {
+        	//it.f;
+        	f(*it);
           }
-          auto future_ready = [](auto& f) -> bool { return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; };
-          while(! std::all_of(task_statuses.begin(), task_statuses.end(), future_ready) ){
-              // if there are tasks in the threadpool queue, the main thread executes one
-              threadpool.schedule_one_or_yield();
-          }
-          //when concurrent_for_each end threadpool queue is empty
         }
 
 

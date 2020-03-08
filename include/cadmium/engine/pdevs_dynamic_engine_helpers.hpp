@@ -31,6 +31,9 @@
 #include <cadmium/engine/pdevs_dynamic_engine.hpp>
 #include <cadmium/logger/common_loggers.hpp>
 
+#ifdef CADMIUM_EXECUTE_CONCURRENT
+#include <cadmium/engine/concurrency_helpers.hpp>
+#endif //CADMIUM_EXECUTE_CONCURRENT
 
 namespace cadmium {
     namespace dynamic {
@@ -90,31 +93,46 @@ namespace cadmium {
             template<typename TIME>
             using external_couplings = typename std::vector<external_coupling<TIME>>;
 
+
             template<typename TIME>
             void init_subcoordinators(TIME t, subcoordinators_type<TIME>& subcoordinators) {
                 auto init_coordinator = [&t](auto & c)->void { c->init(t); };
                 std::for_each(subcoordinators.begin(), subcoordinators.end(), init_coordinator);
             }
 
+
+
+            #ifdef CADMIUM_EXECUTE_CONCURRENT
+            template<typename TIME>
+            void advance_simulation_in_subengines(TIME t, subcoordinators_type<TIME>& subcoordinators) {
+                auto advance_time= [&t](auto &c)->void { c->advance_simulation(t); };
+
+                cadmium::concurrency::concurrent_for_each(subcoordinators.begin(),
+                                                         subcoordinators.end(), advance_time);
+            }
+            #else
             template<typename TIME>
             void advance_simulation_in_subengines(TIME t, subcoordinators_type<TIME>& subcoordinators) {
                 auto advance_time= [&t](auto &c)->void { c->advance_simulation(t); };
                 std::for_each(subcoordinators.begin(), subcoordinators.end(), advance_time);
             }
+            #endif //CADMIUM_EXECUTE_CONCURRENT
 
+            #ifdef CADMIUM_EXECUTE_CONCURRENT
             template<typename TIME>
             void collect_outputs_in_subcoordinators(TIME t, subcoordinators_type<TIME>& subcoordinators) {
                 auto collect_output = [&t](auto & c)->void { c->collect_outputs(t); };
 
-                //parallel section with OpenMP
-				#pragma omp parallel for
-
-                for (it = subcooordinators.begin(); it < subcorrdinators.end(); it++) {
-                	it.collect_outputs(t);
-                }
-//                	std::for_each(subcoordinators.begin(), subcoordinators.end(), collect_output);
-
+                cadmium::concurrency::concurrent_for_each(subcoordinators.begin(),
+                                                         subcoordinators.end(), collect_output);
             }
+            #else
+            template<typename TIME>
+            void collect_outputs_in_subcoordinators(TIME t, subcoordinators_type<TIME>& subcoordinators) {
+                auto collect_output = [&t](auto & c)->void { c->collect_outputs(t); };
+                std::for_each(subcoordinators.begin(), subcoordinators.end(), collect_output);
+            }
+            #endif //CADMIUM_EXECUTE_CONCURRENT
 
             template<typename TIME, typename LOGGER>
             cadmium::dynamic::message_bags collect_messages_by_eoc(const external_couplings<TIME>& coupling) {
