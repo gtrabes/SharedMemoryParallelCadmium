@@ -43,6 +43,7 @@ namespace cadmium {
         template<typename ITERATOR, typename FUNC>
         void concurrent_for_each(ITERATOR first, ITERATOR last, FUNC& f) {
 
+		#pragma omp parallel for
         for (ITERATOR it = first; it != last; it++) {
         	//it.f;
         	f(*it);
