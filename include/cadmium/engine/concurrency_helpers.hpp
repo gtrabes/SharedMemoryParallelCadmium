@@ -32,8 +32,6 @@
 #include <future>
 #include <chrono>
 
-#include <boost/thread/executors/basic_thread_pool.hpp>
-
 namespace cadmium {
     namespace concurrency {
         /*
