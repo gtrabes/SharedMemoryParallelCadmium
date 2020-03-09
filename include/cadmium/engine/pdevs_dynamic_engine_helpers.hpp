@@ -104,11 +104,10 @@ namespace cadmium {
 
             #ifdef CADMIUM_EXECUTE_CONCURRENT
             template<typename TIME>
-            void advance_simulation_in_subengines(TIME t, subcoordinators_type<TIME>& subcoordinators) {
+            void advance_simulation_in_subengines(TIME t, subcoordinators_type<TIME>& subcoordinators, int thread_number) {
                 auto advance_time= [&t](auto &c)->void { c->advance_simulation(t); };
 
-                cadmium::concurrency::concurrent_for_each(subcoordinators.begin(),
-                                                         subcoordinators.end(), advance_time);
+                cadmium::concurrency::parallel_for_each(subcoordinators, advance_time, thread_number);
             }
             #else
             template<typename TIME>
@@ -118,13 +117,14 @@ namespace cadmium {
             }
             #endif //CADMIUM_EXECUTE_CONCURRENT
 
+
+
             #ifdef CADMIUM_EXECUTE_CONCURRENT
             template<typename TIME>
-            void collect_outputs_in_subcoordinators(TIME t, subcoordinators_type<TIME>& subcoordinators) {
+            void collect_outputs_in_subcoordinators(TIME t, subcoordinators_type<TIME>& subcoordinators, int thread_number) {
                 auto collect_output = [&t](auto & c)->void { c->collect_outputs(t); };
 
-                cadmium::concurrency::concurrent_for_each(subcoordinators.begin(),
-                                                         subcoordinators.end(), collect_output);
+                cadmium::concurrency::parallel_for_each(subcoordinators, collect_output, thread_number);
             }
             #else
             template<typename TIME>
@@ -133,6 +133,8 @@ namespace cadmium {
                 std::for_each(subcoordinators.begin(), subcoordinators.end(), collect_output);
             }
             #endif //CADMIUM_EXECUTE_CONCURRENT
+
+
 
             template<typename TIME, typename LOGGER>
             cadmium::dynamic::message_bags collect_messages_by_eoc(const external_couplings<TIME>& coupling) {

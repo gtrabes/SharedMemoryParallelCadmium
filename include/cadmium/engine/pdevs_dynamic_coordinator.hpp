@@ -53,6 +53,13 @@ namespace cadmium {
                 external_couplings<TIME> _external_input_couplings;
                 internal_couplings<TIME> _internal_coupligns;
 
+
+				#ifdef CADMIUM_EXECUTE_CONCURRENT
+                int _thread_number;
+                #endif //CADMIUM_EXECUTE_CONCURRENT
+
+
+
             public:
 
                 dynamic::message_bags _inbox;
@@ -68,6 +75,11 @@ namespace cadmium {
                 coordinator(std::shared_ptr<model_type> coupled_model)
                         : _model_id(coupled_model->get_id())
                 {
+
+					#ifdef CADMIUM_EXECUTE_CONCURRENT
+                    _thread_number = 1;
+                    #endif //CADMIUM_EXECUTE_CONCURRENT
+
 
                     std::map<std::string, std::shared_ptr<engine<TIME>>> enginges_by_id;
 
@@ -167,16 +179,31 @@ namespace cadmium {
                  * @param initial_time is the start time
                  */
                 void init(TIME initial_time) override {
-                    LOGGER::template log<cadmium::logger::logger_info, cadmium::logger::coor_info_init>(initial_time, _model_id);
+                	LOGGER::template log<cadmium::logger::logger_info, cadmium::logger::coor_info_init>(initial_time, _model_id);
 
-                    _last = initial_time;
-                    //init all subcoordinators and find next transition time.
+                	_last = initial_time;
+                	//init all subcoordinators and find next transition time.
 
-                    cadmium::dynamic::engine::init_subcoordinators<TIME>(initial_time, _subcoordinators);
+//					#ifdef CADMIUM_EXECUTE_CONCURRENT
+//                	cadmium::dynamic::engine::init_subcoordinators<TIME>(initial_time, _subcoordinators, _thread_number);
+//					#else
+                	cadmium::dynamic::engine::init_subcoordinators<TIME>(initial_time, _subcoordinators);
+//					#endif //CADMIUM_EXECUTE_CONCURRENT
 
-                    //find the one with the lowest next time
-                    _next = cadmium::dynamic::engine::min_next_in_subcoordinators<TIME>(_subcoordinators);
+                	//find the one with the lowest next time
+                	_next = cadmium::dynamic::engine::min_next_in_subcoordinators<TIME>(_subcoordinators);
                 }
+
+				#ifdef CADMIUM_EXECUTE_CONCURRENT
+
+
+                void init(TIME initial_time, int number_of_threads) {
+                	_thread_number = number_of_threads;
+                	this->init(initial_time);
+                }
+
+				#endif //CADMIUM_EXECUTE_CONCURRENT
+
 
                 std::string get_model_id() const override {
                     return _model_id;
@@ -210,8 +237,11 @@ namespace cadmium {
 			
 			// Paralelizar ***************************************************************************************
 
+						#ifdef CADMIUM_EXECUTE_CONCURRENT
+                        cadmium::dynamic::engine::collect_outputs_in_subcoordinators<TIME>(t, _subcoordinators, _thread_number);
+						#else
                         cadmium::dynamic::engine::collect_outputs_in_subcoordinators<TIME>(t, _subcoordinators);
-                     
+						#endif //CADMIUM_EXECUTE_CONCURRENT
 
                         // Use the EOC mapping to compose current level output
                         _outbox = cadmium::dynamic::engine::collect_messages_by_eoc<TIME, LOGGER>(_external_output_couplings);
@@ -257,8 +287,11 @@ namespace cadmium {
                         //recurse on advance_simulation
                         
 //***************************** Paralelizar ************************************************************************/
-                      
-                        cadmium::dynamic::engine::advance_simulation_in_subengines<TIME>(t, _subcoordinators);                     
+						#ifdef CADMIUM_EXECUTE_CONCURRENT
+                        cadmium::dynamic::engine::advance_simulation_in_subengines<TIME>(t, _subcoordinators, _thread_number);
+						#else
+                        cadmium::dynamic::engine::advance_simulation_in_subengines<TIME>(t, _subcoordinators);
+						#endif //CADMIUM_EXECUTE_CONCURRENT
 
                         //set _last and _next
                         _last = t;

@@ -31,6 +31,7 @@
 #include <functional>
 #include <future>
 #include <chrono>
+#include <omp.h>
 
 namespace cadmium {
     namespace concurrency {
@@ -58,8 +59,11 @@ namespace cadmium {
 */
 
         template<class T, typename Function>
-        void parallel_for_each(std::vector< T> & obj, Function f) {
+        void parallel_for_each(std::vector< T> & obj, Function f, int thread_number) {
         	int size = obj.size();
+
+        	/* set number of threads */
+        	omp_set_num_threads(3);
 
         	#pragma omp parallel for firstprivate(f) shared(obj)
         		for (int i = 0; i < size; i++) {
